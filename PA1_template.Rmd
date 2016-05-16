@@ -9,109 +9,83 @@ library(dplyr)
 
 ## Loading and preprocessing the data
 activity <- read.csv("activity.csv", colClasses = c("numeric", "character", "numeric"))
-tail(activity)
-summary (activity)
-str(activity)
 activity$date <- as.Date(activity$date, "%m/%d/%Y")
 
-# generate df2 with complete cases only
+# generate activity2. Here we omit all rows that have NA for steps
 activity2 <- na.omit(activity)
 
-# aggregate steps as per date to get total number of steps in a day
-table_date_steps <- aggregate(steps ~ date, activity2, sum)
+## What is mean total number of steps taken per day?
+total_stepsByDate <- aggregate(steps ~ date, activity2, sum)
 
 # create histogram of total number of steps in a day
-hist(table_date_steps$steps, col=1, main="Histogram of total number of steps per day", 
-     xlab="Total number of steps in a day")
+hist(total_stepsByDate$steps, col=1, main="Total number of steps per day", 
+     xlab="Daiy total number of steps")
 
+# get mean and median total number of steps per day
+mean(total_stepsByDate$steps)
 
-## What is mean total number of steps taken per day?
-totalStepsTakenPerDay <- tapply(activity$steps,activity$date, sum)
-
-## Make a histogram of the total number of steps taken each day
-hist(totalStepsTakenPerDay, breaks = 20, main = "Frequency of number of steps per day", xlab = "Number of steps per day", ylab = "Frequency", col = "blue")
-
-## Calculate and report the mean and median of the total number of steps taken per day
-## Mean of total number of steps taken per day
-totalStepsTakenPerDay_mean <- mean(totalStepsTakenPerDay, na.rm=T)
-totalStepsTakenPerDay_mean
-## Median of total number of steps taken per day
-totalStepsTakenPerDay_median <- median(totalStepsTakenPerDay, na.rm=T)
-totalStepsTakenPerDay_median
+median(total_stepsByDate$steps)
 
 
 ## What is the average daily activity pattern?
 ## Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the ## ## average number of steps taken, averaged across all days (y-axis)
 
-stepsPerIntervalMean <- tapply(activity$steps, activity$interval, mean, na.rm = T)
-summary(stepsPerIntervalMean)
-## 2 way to compute
 # aggregate steps as interval to get average number of steps in an interval across all days
-table_interval_steps <- aggregate(steps ~ interval, activity, mean)
+total_stepsByInterval <- aggregate(steps ~ interval, activity2, mean)
 
 # generate the line plot of the 5-minute interval (x-axis) and the average number of 
 # steps taken, averaged across all days (y-axis)
-plot(table_interval_steps$interval, table_interval_steps$steps, type='l', col=1, 
-     main="Average number of steps averaged over all days", xlab="Interval", 
-     ylab="Average number of steps")
-
-# find row id of maximum average number of steps in an interval
-max_ave_steps_row_id <- which.max(table_interval_steps$steps)
+plot(total_stepsByInterval$interval, total_stepsByInterval$steps, type='l', col=1, 
+     main="Average number of steps over all days", xlab="Interval", 
+     ylab="Average steps")
+    
+# find row id of the maximum steps
+maxSteps_rowid <- which.max(total_stepsByInterval$steps)
 
 # get the interval with maximum average number of steps in an interval
-table_interval_steps [max_ave_steps_row_id, ]
+total_stepsByInterval[maxSteps_rowid, ]
 
+  
 ## Imputing missing values
-
+# Find the total rows of missing values
 sum(is.na(activity$steps))
 
-# perform the imputation
+# perform the imputation for missing vlues
 for (i in 1:nrow(activity)){
   if (is.na(activity$steps[i])){
     interval_val <- activity$interval[i]
-    row_id <- which(table_interval_steps$interval == interval_val)
-    steps_val <- table_interval_steps$steps[row_id]
+    row_id <- which(total_stepsByInterval$interval == interval_val)
+    steps_val <- total_stepsByInterval$steps[row_id]
     activity$steps[i] <- steps_val
   }
 }
 
-# aggregate steps as per date to get total number of steps in a day
-table_date_steps_imputed <- aggregate(steps ~ date, activity, sum)
+# After imputation we aggregate steps as per date to get total number of steps in a day
+total_stepsByDateImputed <- aggregate(steps ~ date, activity, sum)
 
 # create histogram of total number of steps in a day
-hist(table_date_steps_imputed$steps, col=1, main="(Imputed) Histogram of total number of steps per day", xlab="Total number of steps in a day")
+hist(total_stepsByDateImputed$steps, col=1, main="Total number of steps per day after imputation", xlab="Total steps in a day")
 
 # get mean and median of total number of steps per day
-mean(table_date_steps_imputed$steps)
-
-median(table_date_steps_imputed$steps)
+mean(total_stepsByDateImputed$steps)
+median(total_stepsByDateImputed$steps)
 
 # get mean and median of total number of steps per day for data with NA's removed
-mean(table_date_steps$steps)
+mean(total_stepsByDate$steps)
+median(total_stepsByDate$steps)
 
-median(table_date_steps$steps)
-
-## Due to data imputation, the means remain same whereas there is slight change in median value.
-
-
-
-
-
-
-
+## there is slight change in median value because of data imputation
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
-# convert date from string to Date class
-## activity$date <- as.Date(activity$date, "%Y-%m-%d")
-
-# add a new column indicating day of the week 
+# We create 2 new columns to acivity data frame, one for indicating day of the week and another for day type
 activity$day <- weekdays(activity$date)
-
-# add a new column called day type and initialize to weekday
+head(activity)
 activity$day_type <- c("weekday")
+head(activity)
 
-# If day is Saturday or Sunday, make day_type as weekend
+
+## If day is Saturday or Sunday, we make day_type as weekend
 for (i in 1:nrow(activity)){
   if (activity$day[i] == "Saturday" || activity$day[i] == "Sunday"){
     activity$day_type[i] <- "weekend"
@@ -122,10 +96,10 @@ for (i in 1:nrow(activity)){
 activity$day_type <- as.factor(activity$day_type)
 
 # aggregate steps as interval to get average number of steps in an interval across all days
-table_interval_steps_imputed <- aggregate(steps ~ interval+day_type, activity, mean)
+total_stepsByIntervalImputed <- aggregate(steps ~ interval+day_type, activity, mean)
 
-# make the panel plot for weekdays and weekends
+# We make panel plot for weekdays and weekends
 library(ggplot2)
 
-qplot(interval, steps, data=table_interval_steps_imputed, geom=c("line"), xlab="Interval", 
-      ylab="Number of steps", main="") + facet_wrap(~ day_type, ncol=1)
+qplot(interval, steps, data=total_stepsByIntervalImputed, geom=c("line"), xlab="Interval", 
+      ylab="Number of steps", main="Weekday Vs Weekend") + facet_wrap(~ day_type, ncol=1)
